@@ -167,6 +167,12 @@ SubscriptionBase::get_publisher_count() const
   return inter_process_publisher_count;
 }
 
+bool
+SubscriptionBase::can_loan_messages() const
+{
+  return rcl_subscription_can_loan_messages(subscription_handle_.get());
+}
+
 void SubscriptionBase::setup_intra_process(
   uint64_t intra_process_subscription_id,
   IntraProcessManagerWeakPtr weak_ipm,

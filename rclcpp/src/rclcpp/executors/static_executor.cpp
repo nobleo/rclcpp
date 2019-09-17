@@ -204,12 +204,7 @@ StaticExecutor::execute_wait_set(
     for (size_t i = 0; i < wait_set_.size_of_subscriptions; ++i) {
       if (wait_set_.size_of_subscriptions && exec_list.number_of_subscription) {
         if (wait_set_.subscriptions[i]) {
-          if (exec_list.subscription[i]->get_intra_process_subscription_handle()) {
-            execute_intra_process_subscription(exec_list.subscription[i]);
-          }
-          else {
-            execute_subscription(exec_list.subscription[i]);  //run the callback
-          }
+          execute_subscription(exec_list.subscription[i]);  //run the callback
         }
       }
     }
@@ -239,14 +234,13 @@ StaticExecutor::execute_wait_set(
         }
       }
     }
-/*
+
   //TODO: Verify working of wait_set
     for (size_t i = 0; i < exec_list.number_of_waitable; ++i) {
       if (exec_list.waitable[i]->is_ready(wait_set_)) {
         exec_list.waitable[i]->execute();
       }
     }
-*/
 }
 
 void

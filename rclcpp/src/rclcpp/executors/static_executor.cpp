@@ -237,7 +237,7 @@ StaticExecutor::execute_wait_set(
 
   //TODO: Verify working of wait_set
     for (size_t i = 0; i < exec_list.number_of_waitable; ++i) {
-      if (exec_list.waitable[i]->is_ready(wait_set_)) {
+      if (exec_list.waitable[i]->is_ready(&wait_set_)) {
         exec_list.waitable[i]->execute();
       }
     }

@@ -26,6 +26,7 @@
 
 #include "rclcpp/subscription.hpp"
 #include "rclcpp/subscription_traits.hpp"
+#include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/node_interfaces/node_base_interface.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -55,14 +56,15 @@ struct SubscriptionFactory
 
   SubscriptionFactoryFunction create_typed_subscription;
 
-  // Function that takes a MessageT from the intra process manager
-  using SetupIntraProcessFunction = std::function<
-    void (
-      rclcpp::intra_process_manager::IntraProcessManager::SharedPtr ipm,
-      rclcpp::SubscriptionBase::SharedPtr subscription,
-      const rcl_subscription_options_t & subscription_options)>;
+  // Creates a SubscriptionIntraProcess<MessageT> object and returns it as a base.
+  using SubscriptionIntraProcessFactoryFunction =
+    std::function<rclcpp::SubscriptionIntraProcessBase::SharedPtr(
+        rclcpp::IntraProcessBufferType buffer_type,
+        rclcpp::Context::SharedPtr context,
+        const std::string & topic_name,
+        const rcl_subscription_options_t & subscription_options)>;
 
-  SetupIntraProcessFunction setup_intra_process;
+  SubscriptionIntraProcessFactoryFunction create_typed_subscription_intra_process;
 };
 
 /// Return a SubscriptionFactory with functions for creating a SubscriptionT<MessageT, Alloc>.
@@ -115,6 +117,36 @@ create_subscription_factory(
         msg_mem_strat);
       auto sub_base_ptr = std::dynamic_pointer_cast<SubscriptionBase>(sub);
       return sub_base_ptr;
+    };
+
+  factory.create_typed_subscription_intra_process =
+    [allocator, any_subscription_callback](
+    rclcpp::IntraProcessBufferType buffer_type,
+    rclcpp::Context::SharedPtr context,
+    const std::string & topic_name,
+    const rcl_subscription_options_t & subscription_options
+    ) -> rclcpp::SubscriptionIntraProcessBase::SharedPtr
+    {
+      // If the user has not specified a type for the intra-process buffer, use the callback one.
+      if (buffer_type == IntraProcessBufferType::CallbackDefault) {
+        buffer_type = any_subscription_callback.use_take_shared_method() ?
+          IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
+      }
+
+      using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
+      using MessageAlloc = typename MessageAllocTraits::allocator_type;
+      using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
+
+      auto sub_intra_process = std::make_shared<
+        SubscriptionIntraProcess<MessageT, Alloc, MessageDeleter, CallbackMessageT>>(
+        any_subscription_callback,
+        allocator,
+        context,
+        topic_name,
+        subscription_options.qos,
+        buffer_type);
+
+      return sub_intra_process;
     };
 
   // return the factory now that it is populated

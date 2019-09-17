@@ -27,6 +27,7 @@
 #include "rclcpp/publisher_factory.hpp"
 #include "rclcpp/subscription.hpp"
 #include "rclcpp/subscription_factory.hpp"
+#include "rclcpp/subscription_intra_process.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
@@ -67,14 +68,17 @@ public:
     const std::string & topic_name,
     const rclcpp::SubscriptionFactory & subscription_factory,
     const rcl_subscription_options_t & subscription_options,
-    bool use_intra_process) = 0;
+    bool use_intra_process,
+    rclcpp::IntraProcessBufferType buffer_type) = 0;
+
 
   RCLCPP_PUBLIC
   virtual
   void
   add_subscription(
     rclcpp::SubscriptionBase::SharedPtr subscription,
-    rclcpp::callback_group::CallbackGroup::SharedPtr callback_group) = 0;
+    rclcpp::callback_group::CallbackGroup::SharedPtr callback_group,
+    bool use_intra_process) = 0;
 
   RCLCPP_PUBLIC
   virtual

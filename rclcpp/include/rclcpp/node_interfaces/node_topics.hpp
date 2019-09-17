@@ -64,13 +64,15 @@ public:
     const std::string & topic_name,
     const rclcpp::SubscriptionFactory & subscription_factory,
     const rcl_subscription_options_t & subscription_options,
-    bool use_intra_process) override;
+    bool use_intra_process,
+    rclcpp::IntraProcessBufferType buffer_type) override;
 
   RCLCPP_PUBLIC
   void
   add_subscription(
     rclcpp::SubscriptionBase::SharedPtr subscription,
-    rclcpp::callback_group::CallbackGroup::SharedPtr callback_group) override;
+    rclcpp::callback_group::CallbackGroup::SharedPtr callback_group,
+    bool use_intra_process) override;
 
   RCLCPP_PUBLIC
   rclcpp::node_interfaces::NodeBaseInterface *

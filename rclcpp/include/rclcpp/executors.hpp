@@ -53,7 +53,6 @@ namespace executors
 
 using rclcpp::executors::MultiThreadedExecutor;
 using rclcpp::executors::SingleThreadedExecutor;
-using rclcpp::executors::StaticExecutor;
 
 /// Spin (blocking) until the future is complete, it times out waiting, or rclcpp is interrupted.
 /**

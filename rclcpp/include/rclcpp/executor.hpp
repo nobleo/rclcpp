@@ -362,7 +362,6 @@ protected:
   /// The context associated with this executor.
   std::shared_ptr<rclcpp::Context> context_;
 
-protected:
   RCLCPP_DISABLE_COPY(Executor)
 
   std::list<rclcpp::node_interfaces::NodeBaseInterface::WeakPtr> weak_nodes_;

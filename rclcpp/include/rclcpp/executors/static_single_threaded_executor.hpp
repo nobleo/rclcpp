@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RCLCPP__EXECUTORS__STATIC_EXECUTOR_HPP_
-#define RCLCPP__EXECUTORS__STATIC_EXECUTOR_HPP_
+#ifndef RCLCPP__EXECUTORS__STATIC_SINGLE_THREADED_EXECUTOR_HPP_
+#define RCLCPP__EXECUTORS__STATIC_SINGLE_THREADED_EXECUTOR_HPP_
 
 #include <rmw/rmw.h>
 
@@ -36,37 +36,60 @@ namespace executors
 {
 
 /// Static executor implementation
-// This is the default executor created by rclcpp::spin.
-class StaticExecutor : public executor::Executor
+/**
+ * This executor is a static version of original single threaded executor.
+ * This executor makes the assumption that system does not change during runtime.
+ * This means all nodes, callbackgroups, timers, subscriptions etc. are created
+ * before .spin() is called.
+ *
+ * To run this executor instead of SingleThreadedExecutor replace:
+ * rclcpp::executors::SingleThreadedExecutor exec;
+ * by
+ * rclcpp::executors::StaticSingleThreadedExecutor exec;
+ * in your source code and spin node(s) in the following way:
+ * exec.add_node(node);
+ * exec.spin();
+ * exec.remove_node(node);
+ */
+class StaticSingleThreadedExecutor : public executor::Executor
 {
 public:
-  RCLCPP_SMART_PTR_DEFINITIONS(StaticExecutor)
+  RCLCPP_SMART_PTR_DEFINITIONS(StaticSingleThreadedExecutor)
 
   /// Default constructor. See the default constructor for Executor.
   RCLCPP_PUBLIC
-  StaticExecutor(
+  StaticSingleThreadedExecutor(
     const executor::ExecutorArgs & args = executor::ExecutorArgs());
 
   /// Default destrcutor.
   RCLCPP_PUBLIC
-  virtual ~StaticExecutor();
+  virtual ~StaticSingleThreadedExecutor();
 
-  /// StaticExecutor implementation of spin.
+  /// Static executor implementation of spin.
   // This function will block until work comes in, execute it, and keep blocking.
   // It will only be interrupt by a CTRL-C (managed by the global signal handler).
   RCLCPP_PUBLIC
   void
   spin();
 
-  /*
-    For running this function using client:
-
-    auto result = client->async_send_request(request);
-    rclcpp::executors::StaticExecutor static_exec;
-    static_exec.add_node(node);
-    if (static_exec.spin_until_future_complete(result) ==
-    rclcpp::executor::FutureReturnCode::SUCCESS)
-  */
+  /// Spin (blocking) until the future is complete, it times out waiting, or rclcpp is interrupted.
+  /**
+   * \param[in] future The future to wait on. If this function returns SUCCESS, the future can be
+   *   accessed without blocking (though it may still throw an exception).
+   * \param[in] timeout Optional timeout parameter, which gets passed to
+   *    Executor::execute_ready_executables.
+   *   `-1` is block forever, `0` is non-blocking.
+   *   If the time spent inside the blocking loop exceeds this timeout, return a TIMEOUT return
+   *   code.
+   * \return The return code, one of `SUCCESS`, `INTERRUPTED`, or `TIMEOUT`.
+   *
+   *  Example usage:
+   *  rclcpp::executors::StaticSingleThreadedExecutor exec;
+   *  // ... other part of code like creating node
+   *  // define future
+   *  exec.add_node(node);
+   *  exec.spin_until_future_complete(future);
+   */
   template<typename ResponseT, typename TimeRepT = int64_t, typename TimeT = std::milli>
   rclcpp::executor::FutureReturnCode
   spin_until_future_complete(
@@ -87,10 +110,12 @@ public:
     std::chrono::nanoseconds timeout_left = timeout_ns;
 
     rclcpp::executor::ExecutableList executable_list;
+    // Collect entities and clean any invalid nodes.
     run_collect_entities();
     get_executable_list(executable_list);
     while (rclcpp::ok(this->context_)) {
-      execute_wait_set(executable_list, timeout_left);
+      // Do one set of work.
+      execute_ready_executables(executable_list, timeout_left);
       // Check if the future is set, return SUCCESS if it is.
       status = future.wait_for(std::chrono::seconds(0));
       if (status == std::future_status::ready) {
@@ -114,53 +139,70 @@ public:
   }
 
 protected:
-
+  /// Check which executables in ExecutableList struct are ready from wait_set and execute them.
+  /**
+   * \param[in] exec_list Structure that can hold subscriptionbases, timerbases, etc
+   * \param[in] timeout Optional timeout parameter.
+   */
   RCLCPP_PUBLIC
   void
-  execute_wait_set(executor::ExecutableList & exec_list,
+  execute_ready_executables(executor::ExecutableList & exec_list,
   std::chrono::nanoseconds timeout = std::chrono::nanoseconds(-1));
 
+  /// Get list of TimerBase of all available timers.
   RCLCPP_PUBLIC
   void
   get_timer_list(executor::ExecutableList & exec_list);
 
+  /// Get list of SubscriptionBase of all available subscriptions.
   RCLCPP_PUBLIC
   void
-  get_subscription_list(
-   executor::ExecutableList & exec_list);
+  get_subscription_list(executor::ExecutableList & exec_list);
 
+  /// Get list of ServiceBase of all available services.
   RCLCPP_PUBLIC
   void
   get_service_list(executor::ExecutableList & exec_list);
 
+  /// Get list of ClientBase of all available clients.
   RCLCPP_PUBLIC
   void
   get_client_list(executor::ExecutableList & exec_list);
 
+  /// Get list of all available waitables.
   RCLCPP_PUBLIC
   void
   get_waitable_list(executor::ExecutableList & exec_list);
 
+  /// Get available timers, subscribers, services, clients and waitables in ExecutableList struct.
+  /**
+   * \param[in] exec_list Structure that can hold subscriptionbases, timerbases, etc
+   * \param[in] timeout Optional timeout parameter.
+   */
   RCLCPP_PUBLIC
   void
   get_executable_list(executor::ExecutableList & executable_list,
   std::chrono::nanoseconds timeout = std::chrono::nanoseconds(-1));
 
+  /// Function to run collect_entities() and clean any invalid nodes.
   RCLCPP_PUBLIC
   void run_collect_entities();
 
+  /// Function to add_handles_to_wait_set and wait for work and
+   // block until the wait set is ready or until the timeout has been exceeded.
   RCLCPP_PUBLIC
   void refresh_wait_set(std::chrono::nanoseconds timeout = std::chrono::nanoseconds(-1));
 
+  /// Function to reallocate space for entities in the wait set.
   RCLCPP_PUBLIC
   void prepare_wait_set();
 
 
 private:
-  RCLCPP_DISABLE_COPY(StaticExecutor)
+  RCLCPP_DISABLE_COPY(StaticSingleThreadedExecutor)
 };
 
 }  // namespace executors
 }  // namespace rclcpp
 
-#endif  // RCLCPP__EXECUTORS__STATIC_EXECUTOR_HPP_
+#endif  // RCLCPP__EXECUTORS__STATIC_SINGLE_THREADED_EXECUTOR_HPP_

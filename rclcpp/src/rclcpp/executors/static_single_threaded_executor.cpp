@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rclcpp/executors/static_executor.hpp"
+#include "rclcpp/executors/static_single_threaded_executor.hpp"
 #include "rclcpp/executable_list.hpp"
 #include "rclcpp/scope_exit.hpp"
 
-using rclcpp::executors::StaticExecutor;
+using rclcpp::executors::StaticSingleThreadedExecutor;
 using rclcpp::executor::ExecutableList;
 
-StaticExecutor::StaticExecutor(const rclcpp::executor::ExecutorArgs & args)
+StaticSingleThreadedExecutor::StaticSingleThreadedExecutor(const rclcpp::executor::ExecutorArgs & args)
 : executor::Executor(args) {}
 
-StaticExecutor::~StaticExecutor() {}
+StaticSingleThreadedExecutor::~StaticSingleThreadedExecutor() {}
 
 
 void
-StaticExecutor::spin()
+StaticSingleThreadedExecutor::spin()
 {
   if (spinning.exchange(true)) {
     throw std::runtime_error("spin() called while already spinning");
@@ -35,22 +35,23 @@ StaticExecutor::spin()
   rclcpp::executor::ExecutableList executable_list;
   run_collect_entities();
   get_executable_list(executable_list);
-
   while (rclcpp::ok(this->context_) && spinning.load()) {
-    execute_wait_set(executable_list);
+    execute_ready_executables(executable_list);
   }
 }
 
 void
-StaticExecutor::get_timer_list(ExecutableList & exec_list)
+StaticSingleThreadedExecutor::get_timer_list(ExecutableList & exec_list)
 {
+  // Clear the previous timers (if any) from the ExecutableList struct
   exec_list.timer.clear();
-  exec_list.number_of_timer = 0;
+  exec_list.number_of_timers = 0;
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
       continue;
     }
+    // Check in all the callback groups
     for (auto & weak_group : node->get_callback_groups()) {
       auto group = weak_group.lock();
       if (!group || !group->can_be_taken_from().load()) {
@@ -58,8 +59,9 @@ StaticExecutor::get_timer_list(ExecutableList & exec_list)
       }
       group->find_timer_ptrs_if([&exec_list](const rclcpp::TimerBase::SharedPtr & timer) {
         if(timer){
+          //if any timer is found, push it in the exec_list struct
           exec_list.timer.push_back(timer);
-          exec_list.number_of_timer++;
+          exec_list.number_of_timers++;
         }
         return false;
       });
@@ -68,15 +70,17 @@ StaticExecutor::get_timer_list(ExecutableList & exec_list)
 }
 
 void
-StaticExecutor::get_subscription_list(ExecutableList & exec_list)
+StaticSingleThreadedExecutor::get_subscription_list(ExecutableList & exec_list)
 {
+  // Clear the previous subscriptions (if any) from the ExecutableList struct
   exec_list.subscription.clear();
-  exec_list.number_of_subscription = 0;
+  exec_list.number_of_subscriptions = 0;
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
       continue;
     }
+    // Check in all the callback groups
     for (auto & weak_group : node->get_callback_groups()) {
       auto group = weak_group.lock();
       if (!group || !group->can_be_taken_from().load()) {
@@ -84,8 +88,9 @@ StaticExecutor::get_subscription_list(ExecutableList & exec_list)
       }
       group->find_subscription_ptrs_if([&exec_list](const rclcpp::SubscriptionBase::SharedPtr & subscription) {
         if(subscription){
+          //if any subscription (intra-process as well) is found, push it in the exec_list struct
           exec_list.subscription.push_back(subscription);
-          exec_list.number_of_subscription++;
+          exec_list.number_of_subscriptions++;
         }
         return false;
       });
@@ -93,17 +98,18 @@ StaticExecutor::get_subscription_list(ExecutableList & exec_list)
   }
 }
 
-
 void
-StaticExecutor::get_service_list(ExecutableList & exec_list)
+StaticSingleThreadedExecutor::get_service_list(ExecutableList & exec_list)
 {
+  // Clear the previous services (if any) from the ExecutableList struct
   exec_list.service.clear();
-  exec_list.number_of_service = 0;
+  exec_list.number_of_services = 0;
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
       continue;
     }
+    // Check in all the callback groups
     for (auto & weak_group : node->get_callback_groups()) {
       auto group = weak_group.lock();
       if (!group || !group->can_be_taken_from().load()) {
@@ -111,8 +117,9 @@ StaticExecutor::get_service_list(ExecutableList & exec_list)
       }
       group->find_service_ptrs_if([&exec_list](const rclcpp::ServiceBase::SharedPtr & service) {
         if(service){
+          //if any service is found, push it in the exec_list struct
           exec_list.service.push_back(service);
-          exec_list.number_of_service++;
+          exec_list.number_of_services++;
         }
         return false;
       });
@@ -120,17 +127,18 @@ StaticExecutor::get_service_list(ExecutableList & exec_list)
   }
 }
 
-
 void
-StaticExecutor::get_client_list(ExecutableList & exec_list)
+StaticSingleThreadedExecutor::get_client_list(ExecutableList & exec_list)
 {
+  // Clear the previous clients (if any) from the ExecutableList struct
   exec_list.client.clear();
-  exec_list.number_of_client = 0;
+  exec_list.number_of_clients = 0;
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
       continue;
     }
+    // Check in all the callback groups
     for (auto & weak_group : node->get_callback_groups()) {
       auto group = weak_group.lock();
       if (!group || !group->can_be_taken_from().load()) {
@@ -138,8 +146,9 @@ StaticExecutor::get_client_list(ExecutableList & exec_list)
       }
       group->find_client_ptrs_if([&exec_list](const rclcpp::ClientBase::SharedPtr & client) {
         if(client){
+          //if any client is found, push it in the exec_list struct
           exec_list.client.push_back(client);
-          exec_list.number_of_client++;
+          exec_list.number_of_clients++;
         }
         return false;
       });
@@ -147,17 +156,18 @@ StaticExecutor::get_client_list(ExecutableList & exec_list)
   }
 }
 
-
 void
-StaticExecutor::get_waitable_list(ExecutableList & exec_list)
+StaticSingleThreadedExecutor::get_waitable_list(ExecutableList & exec_list)
 {
+  // Clear the previous waitables (if any) from the ExecutableList struct
   exec_list.waitable.clear();
-  exec_list.number_of_waitable = 0;
+  exec_list.number_of_waitables = 0;
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
       continue;
     }
+    // Check in all the callback groups
     for (auto & weak_group : node->get_callback_groups()) {
       auto group = weak_group.lock();
       if (!group || !group->can_be_taken_from().load()) {
@@ -165,8 +175,9 @@ StaticExecutor::get_waitable_list(ExecutableList & exec_list)
       }
       group->find_waitable_ptrs_if([&exec_list](const rclcpp::Waitable::SharedPtr & waitable) {
         if(waitable){
+          //if any waitable is found, push it in the exec_list struct
           exec_list.waitable.push_back(waitable);
-          exec_list.number_of_waitable++;
+          exec_list.number_of_waitables++;
         }
           return false;
       });
@@ -175,12 +186,13 @@ StaticExecutor::get_waitable_list(ExecutableList & exec_list)
 }
 
 void
-StaticExecutor::get_executable_list(
+StaticSingleThreadedExecutor::get_executable_list(
   ExecutableList & executable_list, std::chrono::nanoseconds timeout)
 {
   // prepare the wait_set
   prepare_wait_set();
 
+  // add handles to the wait_set and wait for work
   refresh_wait_set(timeout);
 
   // Get all the timers
@@ -199,14 +211,14 @@ StaticExecutor::get_executable_list(
   get_waitable_list(executable_list);
 }
 
-// Function to run the callbacks using wait_set directly
 void
-StaticExecutor::execute_wait_set(
+StaticSingleThreadedExecutor::execute_ready_executables(
   ExecutableList & exec_list, std::chrono::nanoseconds timeout)
 {
     refresh_wait_set(timeout);
+    //Execute all the ready subscriptions
     for (size_t i = 0; i < wait_set_.size_of_subscriptions; ++i) {
-      if (wait_set_.size_of_subscriptions && i < exec_list.number_of_subscription) {
+      if (wait_set_.size_of_subscriptions && i < exec_list.number_of_subscriptions) {
         if (wait_set_.subscriptions[i]) {
           if (exec_list.subscription[i]->get_intra_process_subscription_handle()) {
             execute_intra_process_subscription(exec_list.subscription[i]);
@@ -217,42 +229,49 @@ StaticExecutor::execute_wait_set(
         }
       }
     }
-
+    //Execute all the ready timers
     for (size_t i = 0; i < wait_set_.size_of_timers; ++i) {
-      if (wait_set_.size_of_timers && i < exec_list.number_of_timer) {
-        if (wait_set_.timers[i]) {
-          if(i < exec_list.number_of_timer && exec_list.timer[i]->is_ready()){
+      if (wait_set_.size_of_timers && i < exec_list.number_of_timers) {
+        if (wait_set_.timers[i] && exec_list.timer[i]->is_ready()) {
             execute_timer(exec_list.timer[i]);
-          }
         }
       }
     }
-
+    //Execute all the ready services
     for (size_t i = 0; i < wait_set_.size_of_services; ++i) {
-      if (wait_set_.size_of_services && i < exec_list.number_of_service) {
+      if (wait_set_.size_of_services && i < exec_list.number_of_services) {
         if (wait_set_.services[i]) {
             execute_service(exec_list.service[i]);
         }
       }
     }
-
-   for (size_t i = 0; i < wait_set_.size_of_clients; ++i) {
-      if (wait_set_.size_of_clients && i < exec_list.number_of_client) {
+    //Execute all the ready clients
+    for (size_t i = 0; i < wait_set_.size_of_clients; ++i) {
+      if (wait_set_.size_of_clients && i < exec_list.number_of_clients) {
         if (wait_set_.clients[i]) {
             execute_client(exec_list.client[i]);
         }
       }
     }
-
-    for (size_t i = 0; i < exec_list.number_of_waitable; ++i) {
-      if (exec_list.number_of_waitable && exec_list.waitable[i]->is_ready(&wait_set_)) {
+    //Execute all the ready waitables
+    for (size_t i = 0; i < exec_list.number_of_waitables; ++i) {
+      if (exec_list.number_of_waitables && exec_list.waitable[i]->is_ready(&wait_set_)) {
         exec_list.waitable[i]->execute();
+      }
+    }
+
+    //Check guard_conditions to see if anything is added to the executor
+    for (size_t i = 0; i < wait_set_.size_of_guard_conditions; ++i) {
+      if (wait_set_.guard_conditions[i] || guard_conditions_.size() != old_number_of_guard_conditions_) {
+        // rebuild the wait_set
+        run_collect_entities();
+        get_executable_list(exec_list);
       }
     }
 }
 
 void
-StaticExecutor::run_collect_entities()
+StaticSingleThreadedExecutor::run_collect_entities()
 {
   memory_strategy_->clear_handles();
   bool has_invalid_weak_nodes = memory_strategy_->collect_entities(weak_nodes_);
@@ -275,19 +294,20 @@ StaticExecutor::run_collect_entities()
 }
 
 void
-StaticExecutor::prepare_wait_set()
+StaticSingleThreadedExecutor::prepare_wait_set()
 {
   // clear wait set
   if (rcl_wait_set_clear(&wait_set_) != RCL_RET_OK) {
     throw std::runtime_error("Couldn't clear wait set");
   }
-
+  old_number_of_guard_conditions_ = guard_conditions_.size();
   // The size of waitables are accounted for in size of the other entities
   rcl_ret_t ret = rcl_wait_set_resize(
     &wait_set_, memory_strategy_->number_of_ready_subscriptions(),
     memory_strategy_->number_of_guard_conditions(), memory_strategy_->number_of_ready_timers(),
     memory_strategy_->number_of_ready_clients(), memory_strategy_->number_of_ready_services(),
     memory_strategy_->number_of_ready_events());
+
   if (RCL_RET_OK != ret) {
     throw std::runtime_error(
             std::string("Couldn't resize the wait set : ") + rcl_get_error_string().str);
@@ -295,13 +315,13 @@ StaticExecutor::prepare_wait_set()
 }
 
 void
-StaticExecutor::refresh_wait_set(std::chrono::nanoseconds timeout)
+StaticSingleThreadedExecutor::refresh_wait_set(std::chrono::nanoseconds timeout)
 {
   // clear wait set
   if (rcl_wait_set_clear(&wait_set_) != RCL_RET_OK) {
     throw std::runtime_error("Couldn't clear wait set");
   }
-
+  // add handles to the wait_set
   if (!memory_strategy_->add_handles_to_wait_set(&wait_set_)) {
     throw std::runtime_error("Couldn't fill wait set");
   }

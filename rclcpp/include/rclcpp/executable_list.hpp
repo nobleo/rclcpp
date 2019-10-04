@@ -1,4 +1,4 @@
-// Copyright 2015 Open Source Robotics Foundation, Inc.
+// Copyright 2019 Nobleo Technology
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ namespace rclcpp
 namespace executor
 {
 
+/// This struct contains subscriptionbase, timerbase, etc. which can be used to run callbacks.
 struct ExecutableList
 {
   RCLCPP_PUBLIC
@@ -40,17 +41,26 @@ struct ExecutableList
   RCLCPP_PUBLIC
   virtual ~ExecutableList();
 
-  // More than one of the following pointers can be set.
+  // Vector containing the SubscriptionBase of all the subscriptions added to the executor.
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscription;
-  size_t number_of_subscription;
+  // Contains the count of added subscriptions
+  size_t number_of_subscriptions;
+  // Vector containing the TimerBase of all the timers added to the executor.
   std::vector<rclcpp::TimerBase::SharedPtr> timer;
-  size_t number_of_timer;
+  // Contains the count of added timers
+  size_t number_of_timers;
+  // Vector containing the ServiceBase of all the services added to the executor.
   std::vector<rclcpp::ServiceBase::SharedPtr> service;
-  size_t number_of_service;
+  // Contains the count of added services
+  size_t number_of_services;
+  // Vector containing the ClientBase of all the clients added to the executor.
   std::vector<rclcpp::ClientBase::SharedPtr> client;
-  size_t number_of_client;
+  // Contains the count of added clients
+  size_t number_of_clients;
+  // Vector containing all the waitables added to the executor.
   std::vector<rclcpp::Waitable::SharedPtr> waitable;
-  size_t number_of_waitable;
+  // Contains the count of added waitables
+  size_t number_of_waitables;
 };
 
 }  // namespace executor

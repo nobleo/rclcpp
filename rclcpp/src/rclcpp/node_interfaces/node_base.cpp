@@ -254,7 +254,6 @@ NodeBase::get_notify_guard_condition()
   if (!notify_guard_condition_is_valid_) {
     return nullptr;
   }
-  static int count = 0;
   return &notify_guard_condition_;
 }
 

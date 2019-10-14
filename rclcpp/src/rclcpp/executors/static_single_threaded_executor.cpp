@@ -286,6 +286,7 @@ StaticSingleThreadedExecutor::prepare_wait_set()
   if (rcl_wait_set_clear(&wait_set_) != RCL_RET_OK) {
     throw std::runtime_error("Couldn't clear wait set");
   }
+
   // The size of waitables are accounted for in size of the other entities
   rcl_ret_t ret = rcl_wait_set_resize(
     &wait_set_, memory_strategy_->number_of_ready_subscriptions(),

@@ -29,6 +29,7 @@
 
 #include "rclcpp/macros.hpp"
 #include "rclcpp/mapped_ring_buffer.hpp"
+#include "rclcpp/qos.hpp"
 #include "rclcpp/qos_event.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -52,7 +53,7 @@ namespace intra_process_manager
 class IntraProcessManager;
 }
 
-class PublisherBase
+class PublisherBase : public std::enable_shared_from_this<PublisherBase>
 {
   friend ::rclcpp::node_interfaces::NodeTopicsInterface;
 
@@ -153,10 +154,11 @@ public:
    * If the underlying setting in use can't be represented in ROS terms,
    * it will be set to RMW_QOS_POLICY_*_UNKNOWN.
    * May throw runtime_error when an unexpected error occurs.
+   *
    * \return The actual qos settings.
    */
   RCLCPP_PUBLIC
-  rmw_qos_profile_t
+  rclcpp::QoS
   get_actual_qos() const;
 
   /// Compare this publisher to a gid.
@@ -184,8 +186,9 @@ public:
 
   /// Implementation utility function that creates a typed mapped ring buffer.
   RCLCPP_PUBLIC
+  virtual
   mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  virtual make_mapped_ring_buffer(size_t size) const;
+  make_mapped_ring_buffer(size_t size) const;
 
   /// Implementation utility function used to setup intra process publishing after creation.
   RCLCPP_PUBLIC

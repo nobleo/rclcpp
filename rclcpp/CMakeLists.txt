@@ -32,6 +32,9 @@ set(${PROJECT_NAME}_SRCS
   src/rclcpp/clock.cpp
   src/rclcpp/context.cpp
   src/rclcpp/contexts/default_context.cpp
+  src/rclcpp/detail/rmw_implementation_specific_payload.cpp
+  src/rclcpp/detail/rmw_implementation_specific_publisher_payload.cpp
+  src/rclcpp/detail/rmw_implementation_specific_subscription_payload.cpp
   src/rclcpp/duration.cpp
   src/rclcpp/event.cpp
   src/rclcpp/exceptions.cpp
@@ -152,6 +155,8 @@ if(BUILD_TESTING)
 
   include(cmake/rclcpp_add_build_failure_test.cmake)
 
+  add_definitions(-DTEST_RESOURCES_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/test/resources")
+
   ament_add_gtest(test_client test/test_client.cpp)
   if(TARGET test_client)
     ament_target_dependencies(test_client
@@ -217,6 +222,7 @@ if(BUILD_TESTING)
   if(TARGET test_node)
     ament_target_dependencies(test_node
       "rcl_interfaces"
+      "rcpputils"
       "rmw"
       "rosidl_generator_cpp"
       "rosidl_typesupport_cpp"
@@ -465,16 +471,10 @@ if(BUILD_TESTING)
     target_link_libraries(test_multi_threaded_executor ${PROJECT_NAME})
   endif()
 
-  ament_add_gtest(test_local_parameters test/test_local_parameters.cpp)
-  if(TARGET test_local_parameters)
-    ament_target_dependencies(test_local_parameters
-      "rcl_interfaces"
-      "rmw"
-      "rosidl_generator_cpp"
-      "rosidl_typesupport_cpp"
-    )
-    target_link_libraries(test_local_parameters ${PROJECT_NAME})
-  endif()
+  # Install test resources
+  install(
+    DIRECTORY test/resources
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test)
 endif()
 
 ament_package()

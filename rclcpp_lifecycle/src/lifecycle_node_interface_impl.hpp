@@ -377,7 +377,6 @@ public:
       RCUTILS_LOG_ERROR(
         "Unable to start transition %u from current state %s: %s",
         transition_id, state_machine_.current_state->label, rcl_get_error_string().str);
-      rcutils_reset_error();
       return RCL_RET_ERROR;
     }
 
@@ -400,9 +399,8 @@ public:
         &state_machine_, transition_label, publish_update) != RCL_RET_OK)
     {
       RCUTILS_LOG_ERROR(
-        "Failed to finish transition %u. Current state is now: %s (%s)",
-        transition_id, state_machine_.current_state->label, rcl_get_error_string().str);
-      rcutils_reset_error();
+        "Failed to finish transition %u. Current state is now: %s",
+        transition_id, state_machine_.current_state->label);
       return RCL_RET_ERROR;
     }
 
@@ -417,8 +415,7 @@ public:
         rcl_lifecycle_trigger_transition_by_label(
           &state_machine_, error_cb_label, publish_update) != RCL_RET_OK)
       {
-        RCUTILS_LOG_ERROR("Failed to call cleanup on error state: %s", rcl_get_error_string().str);
-        rcutils_reset_error();
+        RCUTILS_LOG_ERROR("Failed to call cleanup on error state");
         return RCL_RET_ERROR;
       }
     }

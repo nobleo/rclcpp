@@ -170,6 +170,11 @@ public:
   OnParametersSetCallbackType
   set_on_parameters_set_callback(OnParametersSetCallbackType callback) override;
 
+  [[deprecated("use set_on_parameters_set_callback() instead")]]
+  RCLCPP_PUBLIC
+  void
+  register_param_change_callback(OnParametersSetCallbackType callback) override;
+
   RCLCPP_PUBLIC
   const std::map<std::string, rclcpp::ParameterValue> &
   get_parameter_overrides() const override;

@@ -1,3 +1,5 @@
+// Copyright 2019 Open Source Robotics Foundation, Inc.
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,17 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rclcpp/executable_list.hpp"
+#include <rclcpp/detail/rmw_implementation_specific_subscription_payload.hpp>
 
-using rclcpp::executor::ExecutableList;
+#include "rcl/subscription.h"
 
-ExecutableList::ExecutableList()
-: number_of_subscriptions(0),
-  number_of_timers(0),
-  number_of_services(0),
-  number_of_clients(0),
-  number_of_waitables(0)
-{}
+namespace rclcpp
+{
+namespace detail
+{
 
-ExecutableList::~ExecutableList()
-{}
+void
+RMWImplementationSpecificSubscriptionPayload::modify_rmw_subscription_options(
+  rmw_subscription_options_t & rmw_subscription_options) const
+{
+  // By default, do not mutate the rmw subscription options.
+  (void)rmw_subscription_options;
+}
+
+}  // namespace detail
+}  // namespace rclcpp

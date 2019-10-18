@@ -1,3 +1,5 @@
+// Copyright 2019 Open Source Robotics Foundation, Inc.
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,17 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rclcpp/executable_list.hpp"
+#include <rclcpp/detail/rmw_implementation_specific_payload.hpp>
 
-using rclcpp::executor::ExecutableList;
+namespace rclcpp
+{
+namespace detail
+{
 
-ExecutableList::ExecutableList()
-: number_of_subscriptions(0),
-  number_of_timers(0),
-  number_of_services(0),
-  number_of_clients(0),
-  number_of_waitables(0)
-{}
+bool
+RMWImplementationSpecificPayload::has_been_customized() const
+{
+  return nullptr != this->get_implementation_identifier();
+}
 
-ExecutableList::~ExecutableList()
-{}
+const char *
+RMWImplementationSpecificPayload::get_implementation_identifier() const
+{
+  return nullptr;
+}
+
+}  // namespace detail
+}  // namespace rclcpp
